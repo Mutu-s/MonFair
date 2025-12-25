@@ -303,54 +303,26 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
       throw new Error('Contract instance is not available. Please check your network connection and contract address.')
     }
     
-    // Detailed validation of contract methods
-    const contractMethods = Object.keys(contract).filter(key => typeof contract[key] === 'function')
-    console.log('[createGame] Contract methods found:', contractMethods.length, 'methods')
-    console.log('[createGame] Contract interface:', contract.interface ? 'exists' : 'missing')
+    // Debug: Log contract info
+    console.log('[createGame] Contract target:', contract.target)
+    console.log('[createGame] Contract interface exists:', !!contract.interface)
+    console.log('[createGame] ABI length:', flipmatchAbi.abi.length)
     
-    if (!contract.createGame) {
-      console.error('[createGame] Contract methods:', contractMethods)
-      console.error('[createGame] ABI length:', flipmatchAbi.abi.length)
-      console.error('[createGame] Contract address:', contract.target)
-      throw new Error('createGame function not found on contract. Contract may not be properly initialized. ABI may be invalid or missing.')
-    }
-    
-    if (typeof contract.createGame !== 'function') {
-      console.error('[createGame] contract.createGame type:', typeof contract.createGame)
-      throw new Error('createGame is not a function on contract. ABI may be invalid.')
-    }
-    
-    if (!contract.createGame.estimateGas) {
-      console.error('[createGame] contract.createGame.estimateGas is undefined')
-      console.error('[createGame] contract.createGame properties:', Object.keys(contract.createGame))
-      throw new Error('estimateGas method not available on createGame. This usually means the ABI is invalid or the function signature is wrong.')
+    // Check if createGame function exists in the interface
+    try {
+      const createGameFragment = contract.interface.getFunction('createGame')
+      if (!createGameFragment) {
+        console.error('[createGame] createGame function not found in contract interface')
+        throw new Error('createGame function not found on contract.')
+      }
+      console.log('[createGame] createGame function found:', createGameFragment.name)
+    } catch (fragError) {
+      console.error('[createGame] Error checking contract interface:', fragError)
     }
     
     console.log('[createGame] Sending transaction to create game...')
     
-    // Try to estimate gas first to get better error message
-    try {
-      const gasEstimate = await contract.createGame.estimateGas(
-        gameName,
-        gameParams.gameType,
-        gameParams.maxPlayers,
-        durationHours,
-        password,
-        {
-          value: stake,
-        }
-      )
-      console.log('[createGame] Gas estimate:', gasEstimate.toString())
-    } catch (estimateError: any) {
-      console.error('[createGame] Gas estimation failed:', estimateError)
-      // Try to extract more specific error
-      if (estimateError.reason) {
-        throw new Error(`Transaction will fail: ${estimateError.reason}`)
-      }
-      // Re-throw to get original error handling
-      throw estimateError
-    }
-    
+    // Send transaction directly - ethers v6 handles gas estimation automatically
     const tx = await contract.createGame(gameName, gameParams.gameType, gameParams.maxPlayers, durationHours, password, {
       value: stake,
     })
