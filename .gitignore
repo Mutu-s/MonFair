@@ -19,6 +19,8 @@
 /artifacts
 /cache
 
+# Contract ABI is now committed to git (contracts/FlipMatch.abi.json)
+
 # misc
 .DS_Store
 *.pem

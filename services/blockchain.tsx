@@ -4,13 +4,24 @@ import { getErrorMessage } from '@/utils/errorMessages'
 import { getFlipMatchAddress, MONAD_MAINNET_CHAIN_ID, MONAD_TESTNET_CHAIN_ID } from '@/utils/network'
 import { getNetworkConfig } from '@/utils/networkConfig'
 
-// Contract ABI - will be generated after compilation
+// Contract ABI - using static file that's committed to git
 const getContractABI = () => {
   try {
-    return require('@/artifacts/contracts/FlipMatch.sol/FlipMatch.json')
+    // First try static ABI file (committed to git, always available)
+    const abiData = require('@/contracts/FlipMatch.abi.json')
+    // Handle both formats: direct ABI array or { abi: [...] } object
+    if (Array.isArray(abiData)) {
+      return { abi: abiData }
+    }
+    return abiData.abi ? abiData : { abi: abiData }
   } catch (error) {
-    console.warn('Contract ABI not found. Please run: yarn hardhat compile', error)
-    return { abi: [] }
+    try {
+      // Fallback to artifacts (for local development)
+      return require('@/artifacts/contracts/FlipMatch.sol/FlipMatch.json')
+    } catch (fallbackError) {
+      console.warn('Contract ABI not found. Please ensure contracts/FlipMatch.abi.json exists', error)
+      return { abi: [] }
+    }
   }
 }
 
