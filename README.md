@@ -2,8 +2,6 @@
 
 A verifiably fair gaming platform built on **Monad** blockchain using VRF (Verifiable Random Functions) for provable randomness.
 
-![MonFair](./screenshots/0.png)
-
 ## Mission X: Verifiably Fair
 
 This project implements a hyper-casual gaming platform where randomness is **verifiable** and **transparent**. Players can verify the fairness of every game outcome using VRF technology.
@@ -17,59 +15,6 @@ This project implements a hyper-casual gaming platform where randomness is **ver
 - 📊 **On-Chain Verification**: All randomness is verifiable on-chain
 - 🔍 **VRF Verification Tool**: Built-in UI to verify game fairness
 - 🔐 **Pyth Network Ready**: Contract prepared for Pyth VRF integration
-
-## 🚀 Hızlı Başlangıç
-
-### 1. Kurulum
-
-```bash
-# Bağımlılıkları yükle
-yarn install
-```
-
-### 2. Environment Variables
-
-Proje root dizininde `.env.local` dosyası oluşturun:
-
-```sh
-# Monad Network
-MONAD_RPC_URL=https://rpc.monad.xyz
-NEXT_PUBLIC_RPC_URL=https://rpc.monad.xyz
-
-# WalletConnect (https://cloud.walletconnect.com)
-NEXT_PUBLIC_PROJECT_ID=your_walletconnect_project_id
-
-# NextAuth
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your_random_secret_key_min_32_chars
-
-# Private Key (SADECE DEPLOY İÇİN - GÜVENLİ TUTUN!)
-PRIVATE_KEY=your_private_key_without_0x_prefix
-```
-
-### 3. Local Development
-
-```bash
-# Terminal 1: Hardhat local node
-yarn blockchain
-
-# Terminal 2: Contract deploy
-yarn deploy
-
-# Terminal 3: Development server
-yarn dev
-```
-
-Tarayıcıda [http://localhost:3000](http://localhost:3000) adresine gidin.
-
-### 4. Monad Network'e Deploy
-
-```bash
-# .env.local'de PRIVATE_KEY ve MON token olmalı
-yarn deploy
-```
-
-📖 **Detaylı deployment rehberi için**: [DEPLOYMENT.md](./DEPLOYMENT.md) dosyasına bakın.
 
 ## Monad Network Configuration
 
