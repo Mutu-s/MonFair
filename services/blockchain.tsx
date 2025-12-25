@@ -11,12 +11,26 @@ import flipMatchAbiData from '@/contracts/FlipMatch.abi.json'
 const getContractABI = () => {
   try {
     // Handle both formats: direct ABI array or { abi: [...] } object
+    let abi: any[]
     if (Array.isArray(flipMatchAbiData)) {
-      return { abi: flipMatchAbiData }
+      abi = flipMatchAbiData
+    } else if (flipMatchAbiData && flipMatchAbiData.abi && Array.isArray(flipMatchAbiData.abi)) {
+      abi = flipMatchAbiData.abi
+    } else {
+      console.error('[getContractABI] Invalid ABI format:', typeof flipMatchAbiData, flipMatchAbiData)
+      return { abi: [] }
     }
-    return flipMatchAbiData.abi ? flipMatchAbiData : { abi: flipMatchAbiData }
+    
+    // Log ABI loading status
+    console.log('[getContractABI] ABI loaded successfully, length:', abi.length)
+    
+    // Check if createGame function exists in ABI
+    const hasCreateGame = abi.some((item: any) => item.name === 'createGame' && item.type === 'function')
+    console.log('[getContractABI] createGame function found:', hasCreateGame)
+    
+    return { abi }
   } catch (error) {
-    console.error('Contract ABI not found. Make sure contracts/FlipMatch.abi.json exists and is committed to git.', error)
+    console.error('[getContractABI] Contract ABI not found. Make sure contracts/FlipMatch.abi.json exists and is committed to git.', error)
     // Return empty ABI to prevent build failures, but this will cause runtime errors
     return { abi: [] }
   }
@@ -318,9 +332,27 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
       throw new Error('Contract instance is not available. Please check your network connection and contract address.')
     }
     
+    // Detailed validation of contract methods
+    const contractMethods = Object.keys(contract).filter(key => typeof contract[key] === 'function')
+    console.log('[createGame] Contract methods found:', contractMethods.length, 'methods')
+    console.log('[createGame] Contract interface:', contract.interface ? 'exists' : 'missing')
+    
     if (!contract.createGame) {
-      console.error('[createGame] Contract methods:', Object.keys(contract))
-      throw new Error('createGame function not found on contract. Contract may not be properly initialized.')
+      console.error('[createGame] Contract methods:', contractMethods)
+      console.error('[createGame] ABI length:', flipmatchAbi.abi.length)
+      console.error('[createGame] Contract address:', contract.target)
+      throw new Error('createGame function not found on contract. Contract may not be properly initialized. ABI may be invalid or missing.')
+    }
+    
+    if (typeof contract.createGame !== 'function') {
+      console.error('[createGame] contract.createGame type:', typeof contract.createGame)
+      throw new Error('createGame is not a function on contract. ABI may be invalid.')
+    }
+    
+    if (!contract.createGame.estimateGas) {
+      console.error('[createGame] contract.createGame.estimateGas is undefined')
+      console.error('[createGame] contract.createGame properties:', Object.keys(contract.createGame))
+      throw new Error('estimateGas method not available on createGame. This usually means the ABI is invalid or the function signature is wrong.')
     }
     
     console.log('[createGame] Sending transaction to create game...')
