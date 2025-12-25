@@ -25,6 +25,9 @@ const Page: NextPage<PageProps> = ({ gameData: initialGameData, scoresData: init
   const { game, scores } = useSelector((states: RootState) => states.globalStates)
   const [gameData, setGameData] = useState<GameStruct | null>(initialGameData)
   const [scoresData, setScoresData] = useState<ScoreStruct[]>(initialScoresData || [])
+  const { address } = useAccount()
+  const chainId = useChainId()
+  const [isCreatingRematch, setIsCreatingRematch] = useState(false)
   
   // If no initial game data from server, fetch it client-side
   useEffect(() => {
@@ -72,10 +75,7 @@ const Page: NextPage<PageProps> = ({ gameData: initialGameData, scoresData: init
     }
     
     fetchGameData()
-  }, [initialGameData, chainId, dispatch])
-  const { address } = useAccount()
-  const chainId = useChainId()
-  const [isCreatingRematch, setIsCreatingRematch] = useState(false)
+  }, [initialGameData, chainId, dispatch, setGame, setScores])
 
   // Refresh game data periodically
   useEffect(() => {
