@@ -299,11 +299,14 @@ const GameList: React.FC<GameListProps> = ({ games, showTitle = true }) => {
 
                   {/* Completed State */}
                   {isCompleted && (
-                    <div className="text-center py-2">
-                      <span className="text-xs text-gray-500 font-medium">
-                        {gameItem.status === GameStatus.COMPLETED ? 'Game Completed' : 'Game Tied'}
-                      </span>
-                    </div>
+                    <Link
+                      href={`/results/${createSlug(gameItem.name || `Game #${gameItem.id}`, gameItem.id)}-${gameItem.id}`}
+                      className="btn-primary text-center text-sm py-2.5 font-bold flex items-center justify-center gap-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <FaTrophy size={14} />
+                      View Results
+                    </Link>
                   )}
                 </div>
               )
