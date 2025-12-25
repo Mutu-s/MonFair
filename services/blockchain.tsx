@@ -5,9 +5,10 @@ import { getFlipMatchAddress, MONAD_MAINNET_CHAIN_ID, MONAD_TESTNET_CHAIN_ID } f
 import { getNetworkConfig } from '@/utils/networkConfig'
 
 // Contract ABI - using static file that's committed to git
+// No fallback to artifacts to avoid webpack build errors in production
 const getContractABI = () => {
   try {
-    // First try static ABI file (committed to git, always available)
+    // Use static ABI file (committed to git, always available)
     const abiData = require('@/contracts/FlipMatch.abi.json')
     // Handle both formats: direct ABI array or { abi: [...] } object
     if (Array.isArray(abiData)) {
@@ -15,13 +16,9 @@ const getContractABI = () => {
     }
     return abiData.abi ? abiData : { abi: abiData }
   } catch (error) {
-    try {
-      // Fallback to artifacts (for local development)
-      return require('@/artifacts/contracts/FlipMatch.sol/FlipMatch.json')
-    } catch (fallbackError) {
-      console.warn('Contract ABI not found. Please ensure contracts/FlipMatch.abi.json exists', error)
-      return { abi: [] }
-    }
+    console.error('Contract ABI not found. Make sure contracts/FlipMatch.abi.json exists and is committed to git.', error)
+    // Return empty ABI to prevent build failures, but this will cause runtime errors
+    return { abi: [] }
   }
 }
 
