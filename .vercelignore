@@ -1,0 +1,17 @@
+# Ignore build artifacts and cache
+artifacts/
+cache/
+node_modules/
+.next/
+.env
+.env.local
+.env.*.local
+
+# Hardhat files
+cache/
+artifacts/
+coverage/
+
+# Test files
+test/
+

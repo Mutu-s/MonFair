@@ -17,7 +17,7 @@
     "export": "next build && next export",
     "lint": "next lint",
     "format": "prettier --ignore-path .gitignore \"pages/**/*.+(ts|js|tsx)\" --write",
-    "postinstall": "husky install",
+    "postinstall": "husky install || true",
     "blockchain": "yarn hardhat node",
     "deploy": "yarn hardhat run scripts/deploy.js",
     "seed": "yarn hardhat run scripts/seed.js"
@@ -38,7 +38,6 @@
     "@types/react": "18.2.21",
     "@types/react-dom": "18.2.7",
     "autoprefixer": "10.4.15",
-    "emojtcha-react": "1.0.6",
     "eslint": "8.48.0",
     "eslint-config-next": "13.4.19",
     "ethers": "^6.7.1",
