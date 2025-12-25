@@ -1420,7 +1420,8 @@ const structuredGame = async (game: any, contractInstance?: ethers.Contract): Pr
     const gameStatus = Number(game.status || 0)
     const winner = game.winner ? String(game.winner) : '0x0000000000000000000000000000000000000000'
     
-    if (gameStatus === 2 && winner !== '0x0000000000000000000000000000000000000000') {
+    // COMPLETED = 3, TIED = 5 (GameStatus enum)
+    if ((gameStatus === GameStatus.COMPLETED || gameStatus === GameStatus.TIED) && winner !== '0x0000000000000000000000000000000000000000') {
       try {
         const totalPrize = game.totalPrize ? parseFloat(fromWei(game.totalPrize)) : 0
         const stake = game.stake ? parseFloat(fromWei(game.stake)) : 0
@@ -1541,7 +1542,8 @@ const structuredGame = async (game: any, contractInstance?: ethers.Contract): Pr
     
     // Get transaction hash for prize distribution if game is completed
     // Note: We can't pass chainId here, but contractInstance already has the correct network
-    if (gameStatus === 2 && winner !== '0x0000000000000000000000000000000000000000') {
+    // COMPLETED = 3, TIED = 5 (GameStatus enum)
+    if ((gameStatus === GameStatus.COMPLETED || gameStatus === GameStatus.TIED) && winner !== '0x0000000000000000000000000000000000000000') {
       try {
         // Try to get chainId from window.ethereum if available
         let chainId: number | undefined
