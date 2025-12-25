@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "dev": "next",
-    "build": "next build",
+    "build": "hardhat compile && next build",
     "start": "next start",
     "export": "next build && next export",
     "lint": "next lint",

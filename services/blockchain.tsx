@@ -293,6 +293,16 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
       }
     }
     
+    // Validate contract instance
+    if (!contract) {
+      throw new Error('Contract instance is not available. Please check your network connection and contract address.')
+    }
+    
+    if (!contract.createGame) {
+      console.error('[createGame] Contract methods:', Object.keys(contract))
+      throw new Error('createGame function not found on contract. Contract may not be properly initialized.')
+    }
+    
     console.log('[createGame] Sending transaction to create game...')
     
     // Try to estimate gas first to get better error message

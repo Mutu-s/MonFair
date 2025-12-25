@@ -1,5 +1,4 @@
-# Ignore build artifacts and cache
-artifacts/
+# Ignore build cache (but NOT artifacts - needed for contract ABI)
 cache/
 node_modules/
 .next/
