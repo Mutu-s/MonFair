@@ -15,7 +15,7 @@ import LoadingButton from '@/components/LoadingButton'
 import { MONAD_TESTNET_CHAIN_ID } from '@/utils/network'
 
 interface PageProps {
-  gameData: GameStruct
+  gameData: GameStruct | null
   scoresData: ScoreStruct[]
 }
 
@@ -23,14 +23,64 @@ const Page: NextPage<PageProps> = ({ gameData: initialGameData, scoresData: init
   const dispatch = useDispatch()
   const { setGame, setScores } = globalActions
   const { game, scores } = useSelector((states: RootState) => states.globalStates)
-  const [gameData, setGameData] = useState<GameStruct>(initialGameData)
-  const [scoresData, setScoresData] = useState<ScoreStruct[]>(initialScoresData)
+  const [gameData, setGameData] = useState<GameStruct | null>(initialGameData)
+  const [scoresData, setScoresData] = useState<ScoreStruct[]>(initialScoresData || [])
+  
+  // If no initial game data from server, fetch it client-side
+  useEffect(() => {
+    const fetchGameData = async () => {
+      if (!initialGameData && chainId && (chainId === 143 || chainId === 10143)) {
+        try {
+          // Extract gameId from URL
+          const pathParts = window.location.pathname.split('/')
+          const slug = pathParts[pathParts.length - 1]
+          const parts = slug.split('-')
+          const gameId = parseInt(parts[parts.length - 1], 10)
+          
+          if (gameId && gameId > 0) {
+            const game = await getGame(gameId, chainId)
+            const scores = await getScores(gameId, chainId)
+            setGameData(game)
+            setScoresData(scores)
+            dispatch(setGame(game))
+            dispatch(setScores(scores))
+          }
+        } catch (error) {
+          console.error('Error fetching game data:', error)
+          // Try other network as fallback
+          try {
+            const { MONAD_MAINNET_CHAIN_ID, MONAD_TESTNET_CHAIN_ID } = await import('@/utils/network')
+            const pathParts = window.location.pathname.split('/')
+            const slug = pathParts[pathParts.length - 1]
+            const parts = slug.split('-')
+            const gameId = parseInt(parts[parts.length - 1], 10)
+            const otherChainId = chainId === MONAD_TESTNET_CHAIN_ID ? MONAD_MAINNET_CHAIN_ID : MONAD_TESTNET_CHAIN_ID
+            
+            if (gameId && gameId > 0) {
+              const game = await getGame(gameId, otherChainId)
+              const scores = await getScores(gameId, otherChainId)
+              setGameData(game)
+              setScoresData(scores)
+              dispatch(setGame(game))
+              dispatch(setScores(scores))
+            }
+          } catch (fallbackError) {
+            console.error('Error fetching game data from fallback network:', fallbackError)
+          }
+        }
+      }
+    }
+    
+    fetchGameData()
+  }, [initialGameData, chainId, dispatch])
   const { address } = useAccount()
   const chainId = useChainId()
   const [isCreatingRematch, setIsCreatingRematch] = useState(false)
 
   // Refresh game data periodically
   useEffect(() => {
+    if (!gameData) return
+    
     const refreshData = async () => {
       try {
         // Use chainId from wagmi, or try both networks if not available
@@ -63,7 +113,7 @@ const Page: NextPage<PageProps> = ({ gameData: initialGameData, scoresData: init
       const interval = setInterval(refreshData, 3000)
       return () => clearInterval(interval)
     }
-  }, [gameData.id, gameData.status, chainId, dispatch, setGame, setScores])
+  }, [gameData?.id, gameData?.status, chainId, dispatch, setGame, setScores])
 
   useEffect(() => {
     dispatch(setGame(gameData))
@@ -73,7 +123,7 @@ const Page: NextPage<PageProps> = ({ gameData: initialGameData, scoresData: init
   return (
     <div>
       <Head>
-        <title>MonFair | Game Result #{gameData.id}</title>
+        <title>MonFair | Game Result{gameData ? ` #${gameData.id}` : ''}</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
       
@@ -86,6 +136,15 @@ const Page: NextPage<PageProps> = ({ gameData: initialGameData, scoresData: init
             <FaArrowLeft size={16} />
             Back to Games
           </Link>
+          
+          {!gameData && (
+            <div className="card">
+              <div className="text-center py-8">
+                <div className="text-4xl mb-4">⏳</div>
+                <p className="text-gray-300">Loading game data...</p>
+              </div>
+            </div>
+          )}
           
           {gameData && gameData.status === GameStatus.COMPLETED && (
             <div className="card bg-success-900/20 border-success-800 mb-6">
@@ -248,10 +307,15 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
     }
   }
   
+  // If server-side fetch fails, return empty props and let client-side handle it
+  // This prevents 404 errors when server can't connect to blockchain
   if (!gameData || !scoresData) {
-    console.error('[getServerSideProps] Failed to fetch game from all networks:', lastError)
+    console.warn('[getServerSideProps] Failed to fetch game from all networks, client will fetch:', lastError)
     return {
-      notFound: true,
+      props: {
+        gameData: null,
+        scoresData: [],
+      },
     }
   }
 
