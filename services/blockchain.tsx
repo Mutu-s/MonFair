@@ -97,6 +97,12 @@ const getEthereumContracts = async () => {
     
     console.log('[getEthereumContracts] Using contract address:', contractAddress, 'for chainId:', chainId)
     
+    // Validate ABI is loaded
+    if (!flipmatchAbi || !flipmatchAbi.abi || flipmatchAbi.abi.length === 0) {
+      console.error('[getEthereumContracts] Contract ABI is not loaded or is empty')
+      throw new Error('Contract ABI is not loaded. Please ensure contracts/FlipMatch.abi.json exists and is committed to git.')
+    }
+    
     const contracts = new ethers.Contract(contractAddress, flipmatchAbi.abi, signer)
     return contracts
   } else {
@@ -163,6 +169,12 @@ const getReadOnlyContract = async (chainIdParam?: number) => {
   }
   
   console.log('[getReadOnlyContract] Using contract address:', contractAddress, 'on', networkConfig.name)
+  
+  // Validate ABI is loaded
+  if (!flipmatchAbi || !flipmatchAbi.abi || flipmatchAbi.abi.length === 0) {
+    console.error('[getReadOnlyContract] Contract ABI is not loaded or is empty')
+    throw new Error('Contract ABI is not loaded. Please ensure contracts/FlipMatch.abi.json exists and is committed to git.')
+  }
   
   return new ethers.Contract(contractAddress, flipmatchAbi.abi, provider)
 }
