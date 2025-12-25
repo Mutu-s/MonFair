@@ -1733,29 +1733,14 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
     }
   }
   
+  // Server-side props: Don't fetch game data on server to avoid RPC issues
+  // Let client-side handle it with correct chainId and wallet connection
+  // This avoids RPC connection issues, chainId mismatches, and ABI loading problems on server
   try {
-    // Default to mainnet for server-side rendering
-    // Client-side will fetch with correct chainId
+    // Only try to fetch if we can (graceful degradation)
     const gameData: GameStruct = await getGame(gameId, MONAD_MAINNET_CHAIN_ID)
     const scoresData: ScoreStruct[] = await getScores(gameId, MONAD_MAINNET_CHAIN_ID)
     
-    // Create slug-based URL (format: slug-id)
-    const slug = createSlug(gameData.name || `Game #${gameData.id}`, gameData.id)
-    const expectedPath = `/gameplay/${slug}-${gameId}`
-    const currentPath = context.resolvedUrl || context.req.url
-    
-    // If URL doesn't match slug format, redirect to slug-based URL
-    // Allow both formats: /gameplay/slug-id and /gameplay/id
-    const isSlugFormat = typeof id === 'string' && id.includes('-') && id.split('-').length > 1
-    if (!isSlugFormat && currentPath === `/gameplay/${gameId}`) {
-      return {
-        redirect: {
-          destination: expectedPath,
-          permanent: false,
-        },
-      }
-    }
-
     return {
       props: {
         gameData: JSON.parse(JSON.stringify(gameData)),
@@ -1763,9 +1748,14 @@ export const getServerSideProps = async (context: GetServerSidePropsContext) => 
       },
     }
   } catch (error) {
-    console.error('Error fetching game:', error)
+    // If server-side fetch fails, return empty props and let client-side handle it
+    // This prevents 404 errors when server can't connect to blockchain
+    console.warn('Server-side game fetch failed, client will fetch:', error)
     return {
-      notFound: true,
+      props: {
+        gameData: null,
+        scoresData: [],
+      },
     }
   }
 }
