@@ -3,40 +3,11 @@ import { GameStruct, GameType, GameStatus, Player, GameParams } from '@/utils/ty
 import { getErrorMessage } from '@/utils/errorMessages'
 import { getFlipMatchAddress, MONAD_MAINNET_CHAIN_ID, MONAD_TESTNET_CHAIN_ID } from '@/utils/network'
 import { getNetworkConfig } from '@/utils/networkConfig'
-// Import ABI directly as static import (webpack will bundle it)
-import flipMatchAbiData from '@/contracts/FlipMatch.abi.json'
+// Import ABI from TypeScript file - guaranteed to work with webpack
+import { FLIPMATCH_ABI } from '@/utils/flipMatchAbi'
 
-// Contract ABI - using static file that's committed to git
-// Direct import ensures webpack can resolve it at build time
-const getContractABI = () => {
-  try {
-    // Handle both formats: direct ABI array or { abi: [...] } object
-    let abi: any[]
-    if (Array.isArray(flipMatchAbiData)) {
-      abi = flipMatchAbiData
-    } else if (flipMatchAbiData && flipMatchAbiData.abi && Array.isArray(flipMatchAbiData.abi)) {
-      abi = flipMatchAbiData.abi
-    } else {
-      console.error('[getContractABI] Invalid ABI format:', typeof flipMatchAbiData, flipMatchAbiData)
-      return { abi: [] }
-    }
-    
-    // Log ABI loading status
-    console.log('[getContractABI] ABI loaded successfully, length:', abi.length)
-    
-    // Check if createGame function exists in ABI
-    const hasCreateGame = abi.some((item: any) => item.name === 'createGame' && item.type === 'function')
-    console.log('[getContractABI] createGame function found:', hasCreateGame)
-    
-    return { abi }
-  } catch (error) {
-    console.error('[getContractABI] Contract ABI not found. Make sure contracts/FlipMatch.abi.json exists and is committed to git.', error)
-    // Return empty ABI to prevent build failures, but this will cause runtime errors
-    return { abi: [] }
-  }
-}
-
-const flipmatchAbi = getContractABI()
+// Contract ABI - using TypeScript export for reliable webpack bundling
+const flipmatchAbi = { abi: FLIPMATCH_ABI }
 
 const toWei = (num: number | string) => ethers.parseEther(num.toString())
 const fromWei = (num: bigint | string) => ethers.formatEther(num.toString())
