@@ -83,7 +83,7 @@ const getEthereumContracts = async () => {
     console.log('[getEthereumContracts] Using contract address:', contractAddress, 'for chainId:', chainId)
     
     // Validate ABI is loaded
-    if (!flipmatchAbi || !flipmatchAbi.abi || (flipmatchAbi.abi as any[]).length === 0) {
+    if (!flipmatchAbi || !flipmatchAbi.abi || (flipmatchAbi.abi as unknown as any[]).length === 0) {
       console.error('[getEthereumContracts] Contract ABI is not loaded or is empty')
       throw new Error('Contract ABI is not loaded. Please ensure contracts/FlipMatch.abi.json exists and is committed to git.')
     }
@@ -156,7 +156,7 @@ const getReadOnlyContract = async (chainIdParam?: number) => {
   console.log('[getReadOnlyContract] Using contract address:', contractAddress, 'on', networkConfig.name)
   
   // Validate ABI is loaded
-  if (!flipmatchAbi || !flipmatchAbi.abi || (flipmatchAbi.abi as any[]).length === 0) {
+  if (!flipmatchAbi || !flipmatchAbi.abi || (flipmatchAbi.abi as unknown as any[]).length === 0) {
     console.error('[getReadOnlyContract] Contract ABI is not loaded or is empty')
     throw new Error('Contract ABI is not loaded. Please ensure contracts/FlipMatch.abi.json exists and is committed to git.')
   }
@@ -306,7 +306,7 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
     // Debug: Log contract info
     console.log('[createGame] Contract target:', contract.target)
     console.log('[createGame] Contract interface exists:', !!contract.interface)
-    console.log('[createGame] ABI length:', (flipmatchAbi.abi as any[]).length)
+    console.log('[createGame] ABI length:', (flipmatchAbi.abi as unknown as any[]).length)
     
     // Check if createGame function exists in the interface
     try {
@@ -2032,6 +2032,7 @@ export const getScores = async (gameId: number, chainIdParam?: number): Promise<
     throw new Error(getErrorMessage(error))
   }
 }
+
 
 
 
