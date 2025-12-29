@@ -109,10 +109,11 @@ const Page: NextPage<PageProps> = ({ gameData: initialGameData, scoresData: init
     }
 
     // Refresh every 3 seconds if game is not completed or tied
-    if (gameData.status !== GameStatus.COMPLETED && gameData.status !== GameStatus.TIED) {
+    if (gameData?.status !== GameStatus.COMPLETED && gameData?.status !== GameStatus.TIED) {
       const interval = setInterval(refreshData, 3000)
       return () => clearInterval(interval)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameData?.id, gameData?.status, chainId, dispatch, setGame, setScores])
 
   useEffect(() => {

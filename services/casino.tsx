@@ -316,7 +316,9 @@ export const playCoinFlip = async (betAmount: string, choice: 0 | 1) => {
       }
       
       // Check if game is authorized in treasury
-      const gameAddress = await getCasinoGameAddress(CasinoGameType.COINFLIP)
+      const network = await provider.getNetwork()
+      const chainId = Number(network.chainId)
+      const gameAddress = await getCasinoGameAddress(CasinoGameType.COINFLIP, chainId)
       const isAuthorized = await treasury.authorizedGames(gameAddress)
       if (!isAuthorized) {
         throw new Error('Game contract is not authorized in treasury. Please contact admin.')
@@ -350,9 +352,58 @@ export const playCoinFlip = async (betAmount: string, choice: 0 | 1) => {
       throw new Error(`Insufficient balance. You have ${ethers.formatEther(userBalance)} MON, but need ${ethers.formatEther(amountWei)} MON`)
     }
     
-    // Skip static call for now - it might fail due to VRF call
-    // Instead, we'll rely on the pre-flight checks above
-    console.log('[playCoinFlip] Pre-flight checks passed, sending transaction...')
+    // Try static call to catch revert reasons before sending transaction
+    try {
+      await gameWithSigner.play.staticCall(amountWei, choice, false, {
+        value: amountWei
+      })
+      console.log('[playCoinFlip] Static call passed, sending transaction...')
+    } catch (staticCallError: any) {
+      console.error('[playCoinFlip] Static call failed:', staticCallError)
+      let errorMessage = 'Transaction will fail'
+      
+      // Try to extract revert reason
+      if (staticCallError.reason) {
+        errorMessage = staticCallError.reason
+      } else if (staticCallError.data) {
+        try {
+          // Try to decode error data
+          const errorData = typeof staticCallError.data === 'string' 
+            ? staticCallError.data 
+            : staticCallError.data.data || staticCallError.data
+          
+          if (errorData && errorData.length >= 10) {
+            // Check if it's a standard revert with reason string
+            if (errorData.slice(0, 10) === '0x08c379a0') {
+              try {
+                const decoded = ethers.AbiCoder.defaultAbiCoder().decode(['string'], '0x' + errorData.slice(10))
+                errorMessage = decoded[0]
+              } catch (decodeError) {
+                console.warn('[playCoinFlip] Failed to decode revert reason:', decodeError)
+              }
+            }
+          }
+        } catch (parseError) {
+          console.warn('[playCoinFlip] Failed to parse error data:', parseError)
+        }
+      } else if (staticCallError.message) {
+        // Check for common error patterns in the message
+        const message = staticCallError.message.toLowerCase()
+        if (message.includes('paused')) {
+          errorMessage = 'Game is paused'
+        } else if (message.includes('amount') || message.includes('bet')) {
+          errorMessage = `Invalid bet amount. Must be between ${ethers.formatEther(config.minPlay)} and ${ethers.formatEther(config.maxPlay)} MON`
+        } else if (message.includes('transfer') || message.includes('balance')) {
+          errorMessage = 'Transfer failed. Please check your balance and try again.'
+        } else if (message.includes('choice')) {
+          errorMessage = 'Invalid choice. Must be 0 (heads) or 1 (tails)'
+        } else {
+          errorMessage = staticCallError.message
+        }
+      }
+      
+      throw new Error(errorMessage)
+    }
     
     const tx = await gameWithSigner.play(amountWei, choice, false, {
       value: amountWei,
@@ -363,6 +414,47 @@ export const playCoinFlip = async (betAmount: string, choice: 0 | 1) => {
     const receipt = await tx.wait()
     
     if (receipt.status === 0) {
+      // Transaction reverted - try to get more details
+      console.error('[playCoinFlip] Transaction reverted! Receipt:', receipt)
+      
+      // Try to call the contract to see what might have failed
+      try {
+        const configAfter = await game.config()
+        if (configAfter.paused) {
+          throw new Error('Game is paused')
+        }
+        if (configAfter.treasury === ethers.ZeroAddress) {
+          throw new Error('Game contract not initialized. Treasury address is zero.')
+        }
+        
+        // Check treasury authorization again
+        const treasuryAbi = [
+          'function paused() external view returns (bool)',
+          'function authorizedGames(address) external view returns (bool)'
+        ]
+        const treasury = new ethers.Contract(configAfter.treasury, treasuryAbi, provider)
+        const treasuryPaused = await treasury.paused()
+        if (treasuryPaused) {
+          throw new Error('Treasury is paused')
+        }
+        
+        const networkAfter = await provider.getNetwork()
+        const chainIdAfter = Number(networkAfter.chainId)
+        const gameAddress = await getCasinoGameAddress(CasinoGameType.COINFLIP, chainIdAfter)
+        const isAuthorized = await treasury.authorizedGames(gameAddress)
+        if (!isAuthorized) {
+          throw new Error('Game contract is not authorized in treasury. Please contact admin.')
+        }
+        
+        // Check treasury balance
+        const treasuryBalance = await provider.getBalance(configAfter.treasury)
+        if (treasuryBalance < amountWei) {
+          throw new Error(`Treasury has insufficient balance. Treasury: ${ethers.formatEther(treasuryBalance)} MON, Required: ${ethers.formatEther(amountWei)} MON`)
+        }
+      } catch (diagnosticError: any) {
+        throw new Error(diagnosticError.message || 'Transaction reverted. Please check contract state and try again.')
+      }
+      
       throw new Error('Transaction reverted. Please check contract state and try again.')
     }
     
@@ -465,7 +557,38 @@ export const playCoinFlip = async (betAmount: string, choice: 0 | 1) => {
     return { txHash: tx.hash || receipt.hash }
   } catch (error: any) {
     console.error('[playCoinFlip] Error:', error)
-    throw new Error(error.reason || error.message || 'Failed to play CoinFlip')
+    
+    // If error already has a user-friendly message, use it
+    if (error.message && !error.message.includes('Failed to play CoinFlip')) {
+      throw error
+    }
+    
+    // Try to extract revert reason from different error formats
+    let errorMessage = error.message || 'Failed to play CoinFlip'
+    
+    if (error.reason) {
+      errorMessage = error.reason
+    } else if (error.data) {
+      try {
+        const errorData = typeof error.data === 'string' 
+          ? error.data 
+          : error.data.data || error.data
+        
+        if (errorData && errorData.length >= 10 && errorData.slice(0, 10) === '0x08c379a0') {
+          const decoded = ethers.AbiCoder.defaultAbiCoder().decode(['string'], '0x' + errorData.slice(10))
+          errorMessage = decoded[0]
+        }
+      } catch (parseError) {
+        // Ignore parse errors
+      }
+    }
+    
+    // Provide common solutions for common errors
+    if (errorMessage.toLowerCase().includes('transfer') || errorMessage.toLowerCase().includes('failed')) {
+      errorMessage += '. Please check: 1) Your balance is sufficient, 2) Treasury is funded, 3) Contract is authorized.'
+    }
+    
+    throw new Error(errorMessage)
   }
 }
 

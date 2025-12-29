@@ -2806,8 +2806,7 @@ export const FLIPMATCH_ABI = [
         "stateMutability":  "nonpayable",
         "type":  "function"
     }
-]
- as const;
+] as const
 
-export default FLIPMATCH_ABI;
+export default FLIPMATCH_ABI
 
