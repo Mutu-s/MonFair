@@ -3,40 +3,11 @@ import { GameStruct, GameType, GameStatus, Player, GameParams } from '@/utils/ty
 import { getErrorMessage } from '@/utils/errorMessages'
 import { getFlipMatchAddress, MONAD_MAINNET_CHAIN_ID, MONAD_TESTNET_CHAIN_ID } from '@/utils/network'
 import { getNetworkConfig } from '@/utils/networkConfig'
-// Import ABI directly as static import (webpack will bundle it)
-import flipMatchAbiData from '@/contracts/FlipMatch.abi.json'
+// Import ABI from TypeScript file - guaranteed to work with webpack
+import { FLIPMATCH_ABI } from '@/utils/flipMatchAbi'
 
-// Contract ABI - using static file that's committed to git
-// Direct import ensures webpack can resolve it at build time
-const getContractABI = () => {
-  try {
-    // Handle both formats: direct ABI array or { abi: [...] } object
-    let abi: any[]
-    if (Array.isArray(flipMatchAbiData)) {
-      abi = flipMatchAbiData
-    } else if (flipMatchAbiData && flipMatchAbiData.abi && Array.isArray(flipMatchAbiData.abi)) {
-      abi = flipMatchAbiData.abi
-    } else {
-      console.error('[getContractABI] Invalid ABI format:', typeof flipMatchAbiData, flipMatchAbiData)
-      return { abi: [] }
-    }
-    
-    // Log ABI loading status
-    console.log('[getContractABI] ABI loaded successfully, length:', abi.length)
-    
-    // Check if createGame function exists in ABI
-    const hasCreateGame = abi.some((item: any) => item.name === 'createGame' && item.type === 'function')
-    console.log('[getContractABI] createGame function found:', hasCreateGame)
-    
-    return { abi }
-  } catch (error) {
-    console.error('[getContractABI] Contract ABI not found. Make sure contracts/FlipMatch.abi.json exists and is committed to git.', error)
-    // Return empty ABI to prevent build failures, but this will cause runtime errors
-    return { abi: [] }
-  }
-}
-
-const flipmatchAbi = getContractABI()
+// Contract ABI - using TypeScript export for reliable webpack bundling
+const flipmatchAbi = { abi: FLIPMATCH_ABI }
 
 const toWei = (num: number | string) => ethers.parseEther(num.toString())
 const fromWei = (num: bigint | string) => ethers.formatEther(num.toString())
@@ -112,7 +83,7 @@ const getEthereumContracts = async () => {
     console.log('[getEthereumContracts] Using contract address:', contractAddress, 'for chainId:', chainId)
     
     // Validate ABI is loaded
-    if (!flipmatchAbi || !flipmatchAbi.abi || flipmatchAbi.abi.length === 0) {
+    if (!flipmatchAbi || !flipmatchAbi.abi || (flipmatchAbi.abi as unknown as any[]).length === 0) {
       console.error('[getEthereumContracts] Contract ABI is not loaded or is empty')
       throw new Error('Contract ABI is not loaded. Please ensure contracts/FlipMatch.abi.json exists and is committed to git.')
     }
@@ -185,7 +156,7 @@ const getReadOnlyContract = async (chainIdParam?: number) => {
   console.log('[getReadOnlyContract] Using contract address:', contractAddress, 'on', networkConfig.name)
   
   // Validate ABI is loaded
-  if (!flipmatchAbi || !flipmatchAbi.abi || flipmatchAbi.abi.length === 0) {
+  if (!flipmatchAbi || !flipmatchAbi.abi || (flipmatchAbi.abi as unknown as any[]).length === 0) {
     console.error('[getReadOnlyContract] Contract ABI is not loaded or is empty')
     throw new Error('Contract ABI is not loaded. Please ensure contracts/FlipMatch.abi.json exists and is committed to git.')
   }
@@ -332,54 +303,26 @@ export const createGame = async (gameParams: GameParams): Promise<string> => {
       throw new Error('Contract instance is not available. Please check your network connection and contract address.')
     }
     
-    // Detailed validation of contract methods
-    const contractMethods = Object.keys(contract).filter(key => typeof contract[key] === 'function')
-    console.log('[createGame] Contract methods found:', contractMethods.length, 'methods')
-    console.log('[createGame] Contract interface:', contract.interface ? 'exists' : 'missing')
+    // Debug: Log contract info
+    console.log('[createGame] Contract target:', contract.target)
+    console.log('[createGame] Contract interface exists:', !!contract.interface)
+    console.log('[createGame] ABI length:', (flipmatchAbi.abi as unknown as any[]).length)
     
-    if (!contract.createGame) {
-      console.error('[createGame] Contract methods:', contractMethods)
-      console.error('[createGame] ABI length:', flipmatchAbi.abi.length)
-      console.error('[createGame] Contract address:', contract.target)
-      throw new Error('createGame function not found on contract. Contract may not be properly initialized. ABI may be invalid or missing.')
-    }
-    
-    if (typeof contract.createGame !== 'function') {
-      console.error('[createGame] contract.createGame type:', typeof contract.createGame)
-      throw new Error('createGame is not a function on contract. ABI may be invalid.')
-    }
-    
-    if (!contract.createGame.estimateGas) {
-      console.error('[createGame] contract.createGame.estimateGas is undefined')
-      console.error('[createGame] contract.createGame properties:', Object.keys(contract.createGame))
-      throw new Error('estimateGas method not available on createGame. This usually means the ABI is invalid or the function signature is wrong.')
+    // Check if createGame function exists in the interface
+    try {
+      const createGameFragment = contract.interface.getFunction('createGame')
+      if (!createGameFragment) {
+        console.error('[createGame] createGame function not found in contract interface')
+        throw new Error('createGame function not found on contract.')
+      }
+      console.log('[createGame] createGame function found:', createGameFragment.name)
+    } catch (fragError) {
+      console.error('[createGame] Error checking contract interface:', fragError)
     }
     
     console.log('[createGame] Sending transaction to create game...')
     
-    // Try to estimate gas first to get better error message
-    try {
-      const gasEstimate = await contract.createGame.estimateGas(
-        gameName,
-        gameParams.gameType,
-        gameParams.maxPlayers,
-        durationHours,
-        password,
-        {
-          value: stake,
-        }
-      )
-      console.log('[createGame] Gas estimate:', gasEstimate.toString())
-    } catch (estimateError: any) {
-      console.error('[createGame] Gas estimation failed:', estimateError)
-      // Try to extract more specific error
-      if (estimateError.reason) {
-        throw new Error(`Transaction will fail: ${estimateError.reason}`)
-      }
-      // Re-throw to get original error handling
-      throw estimateError
-    }
-    
+    // Send transaction directly - ethers v6 handles gas estimation automatically
     const tx = await contract.createGame(gameName, gameParams.gameType, gameParams.maxPlayers, durationHours, password, {
       value: stake,
     })
@@ -2089,6 +2032,10 @@ export const getScores = async (gameId: number, chainIdParam?: number): Promise<
     throw new Error(getErrorMessage(error))
   }
 }
+
+
+
+
 
 
 

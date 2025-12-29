@@ -1,4 +1,4 @@
-# Ignore build cache (but NOT artifacts - needed for contract ABI)
+# Ignore build cache - ABI is now in TypeScript file (utils/flipMatchAbi.ts)
 cache/
 node_modules/
 .next/
@@ -6,7 +6,7 @@ node_modules/
 .env.local
 .env.*.local
 
-# Hardhat files
+# Hardhat files (artifacts not needed - ABI is in TypeScript)
 cache/
 artifacts/
 coverage/
