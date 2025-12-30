@@ -86,7 +86,7 @@ const monadTestnet = {
 const projectId = (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_PROJECT_ID) || ''
 
 const { chains, publicClient } = configureChains(
-  [monad, monadTestnet],
+  [monadTestnet, monad],
   [publicProvider()]
 )
 
@@ -139,4 +139,5 @@ export function Providers({
     </WagmiConfig>
   )
 }
+
 
