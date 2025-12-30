@@ -29,8 +29,8 @@ export const getNetworkType = async (chainId?: number): Promise<NetworkType> => 
     }
   }
 
-  // Default to mainnet
-  return 'mainnet'
+  // Default to testnet
+  return 'testnet'
 }
 
 /**
