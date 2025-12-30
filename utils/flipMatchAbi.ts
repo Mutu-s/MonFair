@@ -2810,7 +2810,4 @@ export const FLIPMATCH_ABI = [
 
 export default FLIPMATCH_ABI
 
-<<<<<<< HEAD
-=======
 
->>>>>>> origin/main
